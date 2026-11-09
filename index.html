@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Swell">
+<link rel="apple-touch-icon" id="touchIcon" href="">
+<title>Swell</title>
+<style>
+:root{
+  --bg:#f5f5f7; --surface:#ffffff; --surface2:#ececf0; --line:#d2d2d7;
+  --text:#1d1d1f; --muted:#6e6e73; --accent:#0071e3; --link:#0066cc;
+  --up:#1b7f36; --down:#d1202f;
+  --font:ui-sans-serif,-apple-system,"SF Pro Text",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#000000; --surface:#1c1c1e; --surface2:#2c2c2e; --line:#424245;
+    --text:#f5f5f7; --muted:#a1a1a6; --accent:#0071e3; --link:#2997ff; --up:#32d74b; --down:#ff6b62; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:17px;line-height:1.45}
+body{min-height:calc(100% + 2px);padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.wrap{max-width:560px;margin:0 auto;padding:18px 18px 40px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;transition:transform .14s cubic-bezier(.2,.8,.3,1)}
+button:active{transform:scale(.96)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hidden{display:none!important}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+h1{font-size:32px;letter-spacing:-.02em;margin:0}
+.sub{color:var(--muted);font-size:15px;margin:0 0 18px}
+.icon-btn{width:42px;height:42px;border-radius:50%;background:var(--surface2);display:grid;place-items:center}
+.icon-btn svg{width:20px;height:20px;stroke:var(--muted);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.icon-btn.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.seg{position:relative;display:flex;background:var(--surface2);border-radius:13px;padding:3px}
+.seg button{position:relative;z-index:1;flex:1;padding:9px 4px;border-radius:10px;font-size:14px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{color:var(--text);font-weight:700}
+.seg .thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px)/var(--n,2));border-radius:10px;background:var(--surface);
+  box-shadow:0 1px 3px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.08);translate:calc(var(--i,0)*100%) 0;transition:translate .5s cubic-bezier(.34,1.45,.5,1)}
+@media (prefers-color-scheme: dark){.seg .thumb{background:#48484a}}
+.controls{display:grid;gap:12px;margin-bottom:14px}
+.row2{display:flex;gap:10px;align-items:center}
+.stepper{display:flex;align-items:center;background:var(--surface2);border-radius:13px;padding:3px;flex:none}
+.stepper button{width:40px;height:34px;border-radius:10px;font-size:22px;font-weight:600;color:var(--link)}
+.stepper .val{min-width:78px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.chip{background:var(--surface2);border-radius:99px;padding:8px 14px;font-size:14px;font-weight:600;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--accent);color:#fff}
+.grow{flex:1}
+
+.summary{font-size:14px;color:var(--muted);margin:2px 4px 10px}
+.group{background:var(--surface);border:.5px solid var(--line);border-radius:22px;overflow:hidden}
+.item{display:grid;grid-template-columns:34px 1fr 64px auto;gap:8px;align-items:center;padding:12px 14px 12px 6px;border-top:.5px solid var(--line)}
+.item:first-child{border-top:0}
+.star{font-size:20px;color:var(--muted);padding:4px}
+.star.on{color:#ff9f0a}
+.tk b{font-size:17px;letter-spacing:-.01em}
+.tk span{display:block;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.spark{width:64px;height:26px}
+.spark polyline{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.chg{text-align:right;font-variant-numeric:tabular-nums}
+.chg b{display:block;font-size:17px}
+.chg span{font-size:14px}
+.up{color:var(--up)} .down{color:var(--down)}
+.empty{padding:28px 20px;text-align:center;color:var(--muted)}
+.note{font-size:13px;color:var(--muted);margin:16px 4px 0}
+.warn{background:color-mix(in srgb,var(--down) 12%,var(--surface));border:.5px solid color-mix(in srgb,var(--down) 40%,var(--line));border-radius:14px;padding:10px 14px;font-size:14px;margin-bottom:12px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Swell</h1>
+    <button class="icon-btn" id="refresh" aria-label="Refresh">
+      <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg>
+    </button>
+  </header>
+  <p class="sub" id="status">Loading…</p>
+  <div id="warn" class="warn hidden"></div>
+
+  <div class="controls">
+    <div class="seg" id="viewSeg" role="group" aria-label="View"></div>
+    <div class="row2">
+      <div class="stepper" aria-label="Minimum move in dollars">
+        <button id="minus" aria-label="Lower the minimum">&minus;</button>
+        <span class="val" id="minVal">$5</span>
+        <button id="plus" aria-label="Raise the minimum">+</button>
+      </div>
+      <div class="seg grow" id="dirSeg" role="group" aria-label="Direction"></div>
+    </div>
+    <div class="row2">
+      <button class="chip" id="mine" aria-pressed="false">&#9733; Mine</button>
+      <button class="chip" id="sort" aria-pressed="false">Sort by %</button>
+    </div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+  <div class="group" id="list"></div>
+  <p class="note">Prices come from Yahoo Finance and can be delayed or wrong. Swell shows how much stocks are moving. It does not tell you what to buy or sell.</p>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const STEPS=[1,2,3,4,5,7.5,10,15,20,30,50];
+  const store={
+    get(k,d){ try{ const v=JSON.parse(localStorage.getItem(k)); return v===null||v===undefined?d:v; }catch(e){ return d; } },
+    set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+  };
+  let view=store.get("view","today"), dir=store.get("dir","all"), minIdx=store.get("minIdx",STEPS.indexOf(5)), byPct=store.get("byPct",false), mineOnly=store.get("mine",false);
+  let stars=new Set(store.get("stars",[])), data=null, loadedAt=0;
+  if(minIdx<0||minIdx>=STEPS.length) minIdx=STEPS.indexOf(5);
+
+  function el(tag,cls,text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; }
+  function money(n,sign){ const a=Math.abs(n), s=a>=1000?a.toLocaleString(undefined,{maximumFractionDigits:0}):a.toFixed(2); return (sign?(n>0?"+":n<0?"\u2212":""):"")+"$"+s; }
+  function pctText(n){ return (n>0?"+":n<0?"\u2212":"")+Math.abs(n).toFixed(2)+"%"; }
+
+  // segmented controls with a sliding thumb
+  function seg(box,opts,get,set){
+    if(!box.dataset.built){
+      box.dataset.built="1";
+      const th=el("span","thumb"); box.appendChild(th);
+      opts.forEach(o=>{ const b=el("button",null,o[1]); b.dataset.v=o[0]; b.onclick=()=>{ set(o[0]); sync(); render(); }; box.appendChild(b); });
+    }
+    function sync(){
+      box.style.setProperty("--n",opts.length);
+      box.querySelector(".thumb").style.setProperty("--i",Math.max(0,opts.findIndex(o=>o[0]===get())));
+      box.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===get())));
+    }
+    sync();
+  }
+
+  function sparkSvg(arr,up){
+    const NS="http://www.w3.org/2000/svg", svg=document.createElementNS(NS,"svg"); svg.setAttribute("viewBox","0 0 64 26"); svg.setAttribute("class","spark");
+    if(!arr||arr.length<2) return svg;
+    const lo=Math.min.apply(null,arr), hi=Math.max.apply(null,arr), span=(hi-lo)||1;
+    const pts=arr.map((v,i)=>(2+i*(60/(arr.length-1))).toFixed(1)+","+(23-((v-lo)/span)*20).toFixed(1)).join(" ");
+    const pl=document.createElementNS(NS,"polyline"); pl.setAttribute("points",pts); pl.setAttribute("style","stroke:var(--"+(up?"up":"down")+")"); svg.appendChild(pl);
+    return svg;
+  }
+
+  function filtered(){
+    const min=STEPS[minIdx]; let q=(data&&data.quotes)||[];
+    if(mineOnly) q=q.filter(x=>stars.has(x.t));
+    if(view==="today"){
+      q=q.filter(x=>Math.abs(x.c)>=min);
+      if(dir==="up") q=q.filter(x=>x.c>0); else if(dir==="down") q=q.filter(x=>x.c<0);
+      q.sort((a,b)=>byPct?Math.abs(b.pct)-Math.abs(a.pct):Math.abs(b.c)-Math.abs(a.c));
+    }else{
+      q=q.filter(x=>x.avg>=min);
+      if(dir==="up") q=q.filter(x=>x.c>0); else if(dir==="down") q=q.filter(x=>x.c<0);
+      q.sort((a,b)=>byPct?(b.avg/b.p)-(a.avg/a.p):b.avg-a.avg);
+    }
+    return q;
+  }
+
+  function ago(iso){
+    if(!iso) return "";
+    const m=Math.round((Date.now()-new Date(iso).getTime())/60000);
+    if(m<2) return "just now"; if(m<60) return m+" min ago";
+    const h=Math.round(m/60); if(h<48) return h+(h===1?" hour":" hours")+" ago";
+    return Math.round(h/24)+" days ago";
+  }
+
+  function render(){
+    seg($("viewSeg"),[["today","Moved today"],["vol","Usually volatile"]],()=>view,v=>{ view=v; store.set("view",v); });
+    seg($("dirSeg"),[["all","All"],["up","Up"],["down","Down"]],()=>dir,v=>{ dir=v; store.set("dir",v); });
+    $("minVal").textContent="\u2265 "+money(STEPS[minIdx]).replace(/\.00$/,"");
+    $("mine").setAttribute("aria-pressed",String(mineOnly)); $("sort").setAttribute("aria-pressed",String(byPct));
+    $("sort").textContent=byPct?"Sorted by %":"Sort by %";
+    const list=$("list"); list.innerHTML="";
+    if(!data||!data.quotes||!data.quotes.length){
+      $("status").textContent="No data yet";
+      list.appendChild(el("div","empty","No prices yet. In your GitHub repo open Actions, choose \u201cUpdate quotes\u201d and press Run workflow. Then refresh this page."));
+      $("summary").textContent=""; return;
+    }
+    const q=filtered(), min=STEPS[minIdx];
+    const ups=q.filter(x=>x.c>0).length, downs=q.filter(x=>x.c<0).length;
+    $("status").textContent="Updated "+ago(data.generated_at)+(data.asof?" \u00b7 session "+data.asof:"");
+    $("summary").textContent=view==="today"
+      ? q.length+" of "+data.quotes.length+" stocks moved at least "+money(min)+" ("+ups+" up, "+downs+" down)"
+      : q.length+" of "+data.quotes.length+" stocks usually move at least "+money(min)+" a day";
+    if(!q.length){
+      list.appendChild(el("div","empty",mineOnly?"None of your starred stocks match. Turn off \u2605 Mine or lower the minimum.":"Nothing matches right now. Try a lower minimum."));
+      return;
+    }
+    q.forEach(x=>{
+      const row=el("div","item"), up=x.c>=0;
+      const st=el("button","star"+(stars.has(x.t)?" on":""),stars.has(x.t)?"\u2605":"\u2606"); st.setAttribute("aria-label",(stars.has(x.t)?"Unstar ":"Star ")+x.t);
+      st.onclick=()=>{ if(stars.has(x.t)) stars.delete(x.t); else stars.add(x.t); store.set("stars",[...stars]); render(); };
+      const tk=el("div","tk"); tk.appendChild(el("b",null,x.t)); tk.appendChild(el("span",null,money(x.p)));
+      const chg=el("div","chg");
+      if(view==="today"){
+        chg.appendChild(el("b",up?"up":"down",money(x.c,true))); chg.appendChild(el("span",up?"up":"down",pctText(x.pct)));
+      }else{
+        chg.appendChild(el("b",null,"\u00b1"+money(x.avg))); chg.appendChild(el("span",up?"up":"down","today "+money(x.c,true)));
+      }
+      row.appendChild(st); row.appendChild(tk); row.appendChild(sparkSvg(x.spark,up)); row.appendChild(chg);
+      list.appendChild(row);
+    });
+  }
+
+  function showWarn(){
+    const w=$("warn"); let msg="";
+    if(data&&data.last_error) msg=data.last_error;
+    else if(data&&data.generated_at&&(Date.now()-new Date(data.generated_at).getTime())>3*86400000) msg="The data is more than 3 days old. Check that the GitHub workflow is still running.";
+    w.textContent=msg; w.classList.toggle("hidden",!msg);
+  }
+
+  async function load(){
+    $("refresh").classList.add("spin");
+    try{
+      const r=await fetch("data/quotes.json?t="+Date.now(),{cache:"no-store"});
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      data=await r.json(); loadedAt=Date.now();
+    }catch(e){ if(!data){ $("status").textContent="Could not load data"; } }
+    $("refresh").classList.remove("spin"); showWarn(); render();
+  }
+
+  $("refresh").onclick=load;
+  $("minus").onclick=()=>{ if(minIdx>0){ minIdx--; store.set("minIdx",minIdx); render(); } };
+  $("plus").onclick=()=>{ if(minIdx<STEPS.length-1){ minIdx++; store.set("minIdx",minIdx); render(); } };
+  $("mine").onclick=()=>{ mineOnly=!mineOnly; store.set("mine",mineOnly); render(); };
+  $("sort").onclick=()=>{ byPct=!byPct; store.set("byPct",byPct); render(); };
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&Date.now()-loadedAt>5*60000) load(); });
+
+  // icon for Add to Home Screen
+  try{
+    const c=document.createElement("canvas"); c.width=c.height=180; const g=c.getContext("2d");
+    const gr=g.createLinearGradient(0,0,0,180); gr.addColorStop(0,"#4aa0ff"); gr.addColorStop(1,"#0071e3"); g.fillStyle=gr; g.fillRect(0,0,180,180);
+    g.strokeStyle="#fff"; g.lineWidth=14; g.lineCap="round"; g.lineJoin="round"; g.beginPath();
+    g.moveTo(30,115); g.lineTo(62,80); g.lineTo(92,104); g.lineTo(122,52); g.lineTo(150,76); g.stroke();
+    $("touchIcon").href=c.toDataURL("image/png");
+  }catch(e){}
+
+  render(); load();
+})();
+</script>
+</body>
+</html>
