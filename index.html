@@ -173,7 +173,7 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
   <div class="controls">
     <div class="seg" id="viewSeg" role="group" aria-label="View"></div>
     <div class="row2">
-      <div class="stepper" aria-label="Minimum move in dollars">
+      <div class="stepper" aria-label="Minimum move">
         <button id="minus" aria-label="Lower the minimum">&minus;</button>
         <span class="val" id="minVal">$5</span>
         <button id="plus" aria-label="Raise the minimum">+</button>
@@ -181,6 +181,7 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
       <div class="seg grow" id="dirSeg" role="group" aria-label="Direction"></div>
     </div>
     <div class="row2">
+      <div class="seg" id="unitSeg" role="group" aria-label="Measure moves in" style="width:104px;flex:none"></div>
       <button class="chip" id="mine" aria-pressed="false">&#9733; Mine</button>
       <button class="chip" id="sort" aria-pressed="false">Sort by %</button>
     </div>
@@ -206,6 +207,14 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
   let view=store.get("view","today"), dir=store.get("dir","all"), minIdx=store.get("minIdx",STEPS.indexOf(5)), byPct=store.get("byPct",false), mineOnly=store.get("mine",false);
   let stars=new Set(store.get("stars",[])), data=null, loadedAt=0;
   if(minIdx<0||minIdx>=STEPS.length) minIdx=STEPS.indexOf(5);
+  const STEPS_PCT=[1,2,3,5,7.5,10,15,20,30];
+  let unit=store.get("unit","usd"), minIdxP=store.get("minIdxP",STEPS_PCT.indexOf(5));
+  if(unit!=="usd"&&unit!=="pct") unit="usd";
+  if(minIdxP<0||minIdxP>=STEPS_PCT.length) minIdxP=STEPS_PCT.indexOf(5);
+  const curSteps=()=>unit==="pct"?STEPS_PCT:STEPS, curIdx=()=>unit==="pct"?minIdxP:minIdx, curMin=()=>curSteps()[curIdx()];
+  function setIdx(i){ if(unit==="pct"){ minIdxP=i; store.set("minIdxP",i); } else { minIdx=i; store.set("minIdx",i); } }
+  function minLabel(){ const m=curMin(); return unit==="pct"?m+"%":money(m); }
+  const tpct=x=>Math.abs(x.avg/x.p*100);
   const DEFAULTS={account:1000,cash:500,riskPct:1,maxPosPct:25,stopK:2,rr:2,tpPct:20,stopPct:10,orderFee:0.15,regPerM:5.10,depFee:false,depPct:0.9,depMin:2,wdFee:false,wdAmt:5,touched:false};
   let plan=Object.assign({},DEFAULTS,store.get("plan",{}));
   let lots=store.get("lots",[]);
@@ -270,14 +279,14 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
   }
 
   function filtered(){
-    const min=STEPS[minIdx]; let q=(data&&data.quotes)||[];
+    const min=curMin(); let q=(data&&data.quotes)||[];
     if(mineOnly) q=q.filter(x=>stars.has(x.t));
     if(view==="today"){
-      q=q.filter(x=>Math.abs(x.c)>=min);
+      q=q.filter(x=>unit==="pct"?Math.abs(x.pct)>=min:Math.abs(x.c)>=min);
       if(dir==="up") q=q.filter(x=>x.c>0); else if(dir==="down") q=q.filter(x=>x.c<0);
       q.sort((a,b)=>byPct?Math.abs(b.pct)-Math.abs(a.pct):Math.abs(b.c)-Math.abs(a.c));
     }else{
-      q=q.filter(x=>x.avg>=min);
+      q=q.filter(x=>unit==="pct"?tpct(x)>=min:x.avg>=min);
       if(dir==="up") q=q.filter(x=>x.c>0); else if(dir==="down") q=q.filter(x=>x.c<0);
       q.sort((a,b)=>byPct?(b.avg/b.p)-(a.avg/a.p):b.avg-a.avg);
     }
@@ -295,7 +304,8 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
   function renderMovers(){
     seg($("viewSeg"),[["today","Moved today"],["vol","Usually volatile"]],()=>view,v=>{ view=v; store.set("view",v); });
     seg($("dirSeg"),[["all","All"],["up","Up"],["down","Down"]],()=>dir,v=>{ dir=v; store.set("dir",v); });
-    $("minVal").textContent="\u2265 "+money(STEPS[minIdx]).replace(/\.00$/,"");
+    seg($("unitSeg"),[["usd","$"],["pct","%"]],()=>unit,v=>{ unit=v; store.set("unit",v); });
+    $("minVal").textContent="\u2265 "+minLabel().replace(/\.00$/,"");
     $("mine").setAttribute("aria-pressed",String(mineOnly)); $("sort").setAttribute("aria-pressed",String(byPct));
     $("sort").textContent=byPct?"Sorted by %":"Sort by %";
     const list=$("list"); list.innerHTML=""; list.classList.toggle("enter",justLoaded); justLoaded=false;
@@ -304,12 +314,12 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
       list.appendChild(el("div","empty","No prices yet. In your GitHub repo open Actions, choose \u201cUpdate quotes\u201d and press Run workflow. Then refresh this page."));
       $("summary").textContent=""; return;
     }
-    const q=filtered(), min=STEPS[minIdx];
+    const q=filtered();
     const ups=q.filter(x=>x.c>0).length, downs=q.filter(x=>x.c<0).length;
     showStatus();
     $("summary").textContent=view==="today"
-      ? q.length+" of "+data.quotes.length+" stocks moved at least "+money(min)+" ("+ups+" up, "+downs+" down)"
-      : q.length+" of "+data.quotes.length+" stocks usually move at least "+money(min)+" a day";
+      ? q.length+" of "+data.quotes.length+" stocks moved at least "+minLabel()+" ("+ups+" up, "+downs+" down)"
+      : q.length+" of "+data.quotes.length+" stocks usually move at least "+minLabel()+" a day";
     if(!q.length){
       list.appendChild(el("div","empty",mineOnly?"None of your starred stocks match. Turn off \u2605 Mine or lower the minimum.":"Nothing matches right now. Try a lower minimum."));
       return;
@@ -353,8 +363,8 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
   }
 
   $("refresh").onclick=()=>load(true);
-  $("minus").onclick=()=>{ if(minIdx>0){ minIdx--; store.set("minIdx",minIdx); render(); } };
-  $("plus").onclick=()=>{ if(minIdx<STEPS.length-1){ minIdx++; store.set("minIdx",minIdx); render(); } };
+  $("minus").onclick=()=>{ if(curIdx()>0){ setIdx(curIdx()-1); render(); } };
+  $("plus").onclick=()=>{ if(curIdx()<curSteps().length-1){ setIdx(curIdx()+1); render(); } };
   $("mine").onclick=()=>{ mineOnly=!mineOnly; store.set("mine",mineOnly); render(); };
   $("sort").onclick=()=>{ byPct=!byPct; store.set("byPct",byPct); render(); };
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&Date.now()-loadedAt>5*60000) load(); });
