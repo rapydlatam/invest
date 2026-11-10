@@ -142,6 +142,19 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
 @keyframes draw{to{stroke-dashoffset:0}}
 .panel.pin{animation:panelIn .4s cubic-bezier(.22,1,.36,1)}
 @keyframes panelIn{from{opacity:0;translate:0 -8px}to{opacity:1;translate:0 0}}
+.tk{min-width:0}
+.tk .l1{display:flex;align-items:baseline;gap:8px}
+.tk .px{font-style:normal;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tk .nm{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.about{padding-bottom:10px;margin-bottom:8px;border-bottom:.5px solid var(--line)}
+.about b{font-size:17px}
+.about p{margin:2px 0 6px;font-size:15px}
+.about a{color:var(--link);font-size:15px;font-weight:600;text-decoration:none}
+.stag{display:inline-block;margin-left:8px;font-size:12px;font-weight:600;color:var(--muted);background:var(--surface);border-radius:99px;padding:2px 9px;vertical-align:2px}
+.chip.mini{padding:7px 10px;font-size:13px;flex:1;text-align:center}
+.more{margin:8px 0 2px}
+.more summary{color:var(--link);font-size:15px;font-weight:600;cursor:pointer}
+.more p{margin:6px 0 0}
 </style>
 </head>
 <body>
@@ -220,12 +233,13 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
   let lots=store.get("lots",[]);
   let tab=store.get("tab","movers"), openT=null;
   if(["movers","calc","pos","plan"].indexOf(tab)<0) tab="movers";
-  let whatif={t:"",usd:10,entry:"",mode:"usd",val:20};
+  let whatif={t:"",usd:10,entry:"",mode:"pct",val:10,solve:false,goal:5};
   const savePlan=()=>store.set("plan",plan), saveLots=()=>store.set("lots",lots);
 
 
   // ===== Appearance and live status =====
-  let appearance=store.get("appearance","dark"), justLoaded=false, pinPanel=false, flashT=null;
+  let appearance=store.get("appearance","dark"), justLoaded=false, pinPanel=false, flashT=null, names={};
+  async function loadNames(){ try{ const r=await fetch("names.json"); if(r.ok){ const j=await r.json(); if(j&&typeof j==='object') names=j; } }catch(e){} }
   function applyScheme(){
     const sc=appearance==="auto"?((window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark"):appearance;
     document.documentElement.setAttribute("data-scheme",sc);
@@ -329,7 +343,9 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
       const row=el("div","item"), up=x.c>=0; row.style.setProperty("--i",Math.min(rowIdx++,14));
       const st=el("button","star"+(stars.has(x.t)?" on":""),stars.has(x.t)?"\u2605":"\u2606"); st.setAttribute("aria-label",(stars.has(x.t)?"Unstar ":"Star ")+x.t);
       st.onclick=()=>{ if(stars.has(x.t)) stars.delete(x.t); else stars.add(x.t); store.set("stars",[...stars]); render(); };
-      const tk=el("div","tk"); tk.appendChild(el("b",null,x.t)); tk.appendChild(el("span",null,money(x.p)));
+      const tk=el("div","tk"), nm=names[x.t];
+      if(nm){ const l1=el("div","l1"); l1.appendChild(el("b",null,x.t)); l1.appendChild(el("i","px",money(x.p))); tk.appendChild(l1); tk.appendChild(el("span","nm",nm[0])); }
+      else{ tk.appendChild(el("b",null,x.t)); tk.appendChild(el("span",null,money(x.p))); }
       const chg=el("div","chg");
       if(view==="today"){
         chg.appendChild(el("b",up?"up":"down",money(x.c,true))); chg.appendChild(el("span",up?"up":"down",pctText(x.pct)));
@@ -417,8 +433,15 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
 
   // ===== Expanded row: size a trade =====
   function kv(box,k,v){ const r=el("div","kv"); r.appendChild(el("span",null,k)); r.appendChild(el("b",null,v)); box.appendChild(r); }
+  function aboutBlock(x){
+    const nm=names[x.t], d=el("div","about");
+    if(nm){ const h=el("div"); h.appendChild(el("b",null,nm[0])); h.appendChild(el("span","stag",nm[2])); d.appendChild(h); d.appendChild(el("p",null,nm[1])); }
+    else d.appendChild(el("p",null,x.t+": no description saved. Add it to names.json."));
+    const a=el("a",null,"See news on Yahoo Finance"); a.href="https://finance.yahoo.com/quote/"+encodeURIComponent(x.t)+"/news"; a.target="_blank"; a.rel="noopener noreferrer"; d.appendChild(a);
+    return d;
+  }
   function panelFor(x){
-    const pn=el("div","panel");
+    const pn=el("div","panel"); pn.appendChild(aboutBlock(x));
     if(!plan.touched){
       pn.appendChild(el("p","hint2","These numbers use placeholder values. Set your real account size, cash and risk rules in Plan first."));
       const bx=el("div","btns"); const b=el("button","btn ghost","Open Plan"); b.onclick=()=>{ tab="plan"; store.set("tab",tab); render(); }; bx.appendChild(b);
@@ -499,7 +522,7 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
     if(!pv.list.length) g.appendChild(el("p","hint2","Add your buys one by one, even if you entered at different prices and dates. Delta groups them by stock."));
     pv.list.sort((a,b)=>(b.value||0)-(a.value||0)).forEach(o=>{
       const d=el("div","pos"), h=el("div","pos-h");
-      h.appendChild(el("b",null,o.t));
+      const hl=el("div"); hl.appendChild(el("b",null,o.t)); const pnm=names[o.t]; if(pnm) hl.appendChild(el("div","hint2",pnm[0]+" \u00b7 "+pnm[1])); h.appendChild(hl);
       if(o.q){ const v=el("span",null,usd(o.value)); h.appendChild(v); }
       d.appendChild(h);
       if(!o.q){ d.appendChild(el("p","hint2","No price for "+o.t+". Add it to tickers.txt in your repository so Delta can track it.")); }
@@ -608,26 +631,74 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
     const box=$("calcPane"); box.innerHTML="";
     const qm=quoteMap(), f=el("div","card"); f.appendChild(el("h2",null,"What if"));
     f.appendChild(el("p","hint2","Type how much you put in and what the stock does. Delta shows what you would gain or lose after Hapi's costs."));
+    const gmodes=[["gain","I put in $X"],["goal","I want to gain $X"]];
+    const gseg=el("div","seg"); gseg.style.margin="4px 0 8px"; gseg.style.setProperty("--n",2);
+    const gth=el("span","thumb"); gseg.appendChild(gth);
+    gmodes.forEach(m=>{ const b=el("button",null,m[1]); b.dataset.v=m[0]; b.onclick=()=>{ readAll(); whatif.solve=(m[0]==="goal"); iA.value=whatif.solve?whatif.goal:whatif.usd; syncGoal(); update(); }; gseg.appendChild(b); });
+    f.appendChild(gseg);
     const dl=document.createElement("datalist"); dl.id="tks2"; ((data&&data.quotes)||[]).forEach(q=>{ const o=document.createElement("option"); o.value=q.t; dl.appendChild(o); }); f.appendChild(dl);
     function field(label,input,hint){ const r=el("div","frow"), l=el("div"); l.appendChild(el("label",null,label)); if(hint) l.appendChild(el("small",null,hint)); r.appendChild(l); r.appendChild(input); f.appendChild(r); return input; }
     function num(v,ph){ const i=document.createElement("input"); i.type="number"; i.step="any"; i.inputMode="decimal"; i.placeholder=ph||""; i.value=v===""||v===undefined?"":v; return i; }
     const iT=document.createElement("input"); iT.type="text"; iT.setAttribute("list","tks2"); iT.placeholder="NVDA"; iT.autocapitalize="characters"; iT.value=whatif.t; field("Ticker (optional)",iT);
-    const iA=field("USD you put in",num(whatif.usd,"10"));
+    const iA=field(whatif.solve?"USD you want to gain":"USD you put in",num(whatif.solve?whatif.goal:whatif.usd,"10"));
     const iE=field("Price per share when you buy",num(whatif.entry,"190"));
-    const modes=[["usd","Moves by $"],["pct","Moves by %"],["price","New price"]];
+    const curNote=el("p","hint2"); curNote.style.margin="-2px 0 4px"; f.appendChild(curNote);
+    const modes=[["pct","Up/down by %"],["usd","Up/down by $"],["price","Target price"]];
     const sg=el("div","seg"); sg.style.margin="10px 0"; sg.style.setProperty("--n",3);
     const th=el("span","thumb"); sg.appendChild(th);
     modes.forEach(m=>{ const b=el("button",null,m[1]); b.dataset.v=m[0]; b.onclick=()=>{ whatif.mode=m[0]; if(m[0]==="price"&&whatif.entry) iV.value=(+whatif.entry*1.1).toFixed(2); sync(); update(); }; sg.appendChild(b); });
     f.appendChild(sg);
-    const iV=field("Amount",num(whatif.val,"20"));
+    const quick=el("div","btns"); quick.style.margin="0 0 4px"; quick.style.gap="6px"; quick.style.flexWrap="nowrap";
+    [[5,"+5%"],[10,"+10%"],[20,"+20%"],[50,"+50%"],[-10,"\u221210%"],[-20,"\u221220%"]].forEach(q=>{
+      const b=el("button","chip mini",q[1]); b.onclick=()=>{ whatif.mode="pct"; iV.value=q[0]; sync(); update(); }; quick.appendChild(b);
+    });
+    f.appendChild(quick);
+    const iV=field("Up or down by (%)",num(whatif.val,"10"),"Use a minus for a drop, for example -10");
+    const more=document.createElement("details"); more.className="more";
+    const sm=document.createElement("summary"); sm.textContent="Thinking in company value?"; more.appendChild(sm);
+    more.appendChild(el("p","hint2","If a company's value rises 10%, its share price rises about 10% (as long as no new shares are issued). Use the % options."));
+    f.appendChild(more);
     const out=el("div"); f.appendChild(out); box.appendChild(f);
-    function sync(){ th.style.setProperty("--i",modes.findIndex(m=>m[0]===whatif.mode)); sg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===whatif.mode))); }
-    function readAll(){ whatif.t=iT.value.trim().toUpperCase(); whatif.usd=parseFloat(iA.value); whatif.entry=parseFloat(iE.value); whatif.val=parseFloat(iV.value); }
+    function sync(){
+      th.style.setProperty("--i",modes.findIndex(m=>m[0]===whatif.mode)); sg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===whatif.mode)));
+      const row=iV.closest(".frow"), lab=row.querySelector("label"), hint=row.querySelector("small");
+      const L={pct:["Up or down by (%)","Use a minus for a drop, for example -10"],usd:["Up or down by ($ per share)","Use a minus for a drop, for example -5"],price:["Target price ($)","The price you think it reaches"]}[whatif.mode];
+      lab.textContent=L[0]; if(hint) hint.textContent=L[1];
+    }
+    function syncGoal(){
+      gth.style.setProperty("--i",whatif.solve?1:0);
+      gseg.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===(whatif.solve?"goal":"gain"))));
+      iA.closest(".frow").querySelector("label").textContent=whatif.solve?"USD you want to gain (net)":"USD you put in";
+    }
+    function readAll(){ whatif.t=iT.value.trim().toUpperCase(); if(whatif.solve) whatif.goal=parseFloat(iA.value); else whatif.usd=parseFloat(iA.value); whatif.entry=parseFloat(iE.value); whatif.val=parseFloat(iV.value); }
     function update(){
       readAll(); out.innerHTML="";
-      const A=whatif.usd, entry=whatif.entry, v=whatif.val;
+      curNote.textContent=""; const cq=qm[whatif.t];
+      if(cq&&whatif.entry>0&&Math.abs(whatif.entry/cq.p-1)>0.01){
+        curNote.appendChild(document.createTextNode(cq.t+" trades at "+usd(cq.p)+" now. "));
+        const ub=el("button","link-btn","Use current price"); ub.onclick=()=>{ iE.value=cq.p; autoP=cq.p; update(); }; curNote.appendChild(ub);
+      }
+      const A=whatif.solve?whatif.goal:whatif.usd, entry=whatif.entry, v=whatif.val;
       if(!(A>0)||!(entry>0)||isNaN(v)){ out.appendChild(el("p","hint2","Fill in the amount, the buy price and the move.")); return; }
       const price=Math.max(0, whatif.mode==="usd"?entry+v:(whatif.mode==="pct"?entry*(1+v/100):v));
+      if(whatif.solve){
+        if(price<=entry){ out.appendChild(el("p","hint2","To gain, the price has to go up. Change the move to a rise.")); return; }
+        const netAt=a=>whatIfResult(a,entry,price,plan).netPL;
+        if(netAt(1e7)<A){ out.appendChild(el("p","hint2","With these costs that gain cannot be reached. Try a bigger move.")); return; }
+        let lo=0,hi=1e7; for(let i=0;i<100;i++){ const mid=(lo+hi)/2; if(netAt(mid)<A) lo=mid; else hi=mid; }
+        const need=Math.ceil(hi*100)/100, rr=whatIfResult(need,entry,price,plan), dn=Math.max(0,entry*(2-price/entry)), rd=whatIfResult(need,entry,dn,plan);
+        const sp=el("div","panel"); sp.style.borderRadius="14px"; sp.style.marginTop="12px";
+        sp.appendChild(el("p","hint2","To gain "+usd(A)+" net if the price goes from "+usd(entry)+" to "+usd(price)+" ("+(price>=entry?"+":"")+((price/entry-1)*100).toFixed(1)+"%)."));
+        sp.appendChild(el("div","big-amt","Put in about "+usd(need)));
+        kv(sp,"Shares you would buy",rr.shares.toFixed(4));
+        kv(sp,"Gain before fees",usd(rr.gross,true));
+        kv(sp,"Fees, in and out",usd(rr.fees));
+        kv(sp,"Net gain",usd(rr.netPL,true));
+        kv(sp,"Out of pocket",usd(rr.e.cashOut));
+        kv(sp,"If it drops by the same amount instead",usd(rd.netPL,true));
+        sp.appendChild(el("p","hint2","Putting in more also means risking more. The drop line shows the loss if the price falls as much as it would have risen."));
+        out.appendChild(sp); return;
+      }
       const r=whatIfResult(A,entry,price,plan), up=r.netPL>=0;
       const panel=el("div","panel"); panel.style.borderRadius="14px"; panel.style.marginTop="12px";
       panel.appendChild(el("p","hint2","You buy "+r.shares.toFixed(4)+" shares at "+usd(entry)+". It goes to "+usd(price)+" ("+(price>=entry?"+":"")+((price/entry-1)*100).toFixed(1)+"%)."));
@@ -645,10 +716,20 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
       [-20,-10,-5,5,10,20].forEach(pc=>{ const px=entry*(1+pc/100), q=whatIfResult(A,entry,px,plan);
         kv(tb,(pc>0?"+":"\u2212")+Math.abs(pc)+"%  ("+usd(px-entry,true)+" per share)",usd(q.netPL,true)); });
       out.appendChild(tb);
+      const am=el("div","panel"); am.style.borderRadius="14px"; am.style.marginTop="10px";
+      am.appendChild(el("h3",null,"Same move with other amounts"));
+      [10,50,100,500,1000].forEach(a=>{ const q=whatIfResult(a,entry,price,plan); kv(am,usd(a)+" in",usd(q.netPL,true)+" ("+(q.pct>=0?"+":"")+q.pct.toFixed(1)+"%)"); });
+      out.appendChild(am);
     }
-    iT.addEventListener("change",()=>{ const q=qm[iT.value.trim().toUpperCase()]; if(q){ iE.value=q.p; } update(); });
+    let autoP=null;
+    function onTicker(){
+      const q=qm[iT.value.trim().toUpperCase()];
+      if(q&&(iE.value===""||(autoP!==null&&+iE.value===autoP))){ iE.value=q.p; autoP=q.p; }
+      update();
+    }
+    iT.addEventListener("input",onTicker); iT.addEventListener("change",onTicker);
     [iA,iE,iV].forEach(i=>i.addEventListener("input",update));
-    sync(); update();
+    sync(); syncGoal(); update();
   }
 
   function render(){
@@ -706,7 +787,7 @@ body::before{content:"";position:absolute;top:0;left:0;right:0;height:360px;back
     $("touchIcon").href=c.toDataURL("image/png");
   }catch(e){}
 
-  render(); load();
+  render(); loadNames().then(()=>load());
 })();
 </script>
 </body>
