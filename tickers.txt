@@ -98,3 +98,11 @@ WMT
 TGT
 PFE
 MRNA
+
+# Your portfolio and watchlist
+SOL-USD
+IONQ
+NNE
+HIMS
+SMR
+DUOL
